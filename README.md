@@ -12,6 +12,7 @@ The project maintains a strict boundary separating the **MCP Server Architecture
 
 ---
 
+
 ## 2. Directory Layout
 
 - **`mcp_servers/`**: Contains standalone MCP servers implementing JSON-RPC 2.0 protocols via `fastmcp`.

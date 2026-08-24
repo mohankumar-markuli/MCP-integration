@@ -52,16 +52,17 @@ def check_path_permission(path: str):
     Validates that the path exists within allowed directories.
     Prevents directory traversal outside safe boundaries.
     """
-    abs_path = os.path.abspath(path)
+    norm_path = os.path.normcase(os.path.abspath(path))
     allowed_dirs = config["allowed_directories"]
     allowed = False
     for allowed_dir in allowed_dirs:
-        if abs_path == allowed_dir or abs_path.startswith(allowed_dir + os.sep):
+        norm_allowed = os.path.normcase(allowed_dir)
+        if norm_path == norm_allowed or norm_path.startswith(norm_allowed + os.sep):
             allowed = True
             break
     if not allowed:
         raise PermissionError(
-            f"Access Denied: Path '{path}' (resolved to '{abs_path}') is outside allowed directories: {allowed_dirs}"
+            f"Access Denied: Path '{path}' (resolved to '{os.path.abspath(path)}') is outside allowed directories: {allowed_dirs}"
         )
 
 # 3. PDF Parsing Helper
@@ -284,5 +285,23 @@ if __name__ == "__main__":
     # Ensure default folders exist
     os.makedirs(config["resumes_directory"], exist_ok=True)
     os.makedirs(config["reports_directory"], exist_ok=True)
-    print("Starting Filesystem MCP Server on stdio...", file=sys.stderr)
-    mcp.run(transport="stdio")
+    
+    transport = "stdio"
+    port = 8001
+    
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "sse":
+            transport = "sse"
+            if len(sys.argv) > 2:
+                try:
+                    port = int(sys.argv[2])
+                except ValueError:
+                    pass
+                    
+    if transport == "sse":
+        print(f"Starting Filesystem MCP Server on SSE (port {port})...", file=sys.stderr)
+        mcp.settings.port = port
+        mcp.run(transport="sse")
+    else:
+        print("Starting Filesystem MCP Server on stdio...", file=sys.stderr)
+        mcp.run(transport="stdio")

@@ -31,6 +31,14 @@ CANDIDATE_DB = {
         "previous_company": "DesignStudio",
         "certifications": [],
         "notes": "Familiar with React and Vue."
+    },
+    "John Doe": {
+        "experience": "7 years as Senior Python Developer",
+        "background_check": "Passed",
+        "expected_salary": "$130,000",
+        "previous_company": "CloudTech",
+        "certifications": ["AWS Certified Developer", "LangChain Certified Developer"],
+        "notes": "Excellent match for agentic workflows and LangGraph pipelines."
     }
 }
 
@@ -51,5 +59,22 @@ def list_db_candidates() -> str:
     return json.dumps(list(CANDIDATE_DB.keys()), indent=2)
 
 if __name__ == "__main__":
-    print("Starting DB MCP Server on stdio...", file=sys.stderr)
-    mcp.run(transport="stdio")
+    transport = "stdio"
+    port = 8002
+    
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "sse":
+            transport = "sse"
+            if len(sys.argv) > 2:
+                try:
+                    port = int(sys.argv[2])
+                except ValueError:
+                    pass
+                    
+    if transport == "sse":
+        print(f"Starting DB MCP Server on SSE (port {port})...", file=sys.stderr)
+        mcp.settings.port = port
+        mcp.run(transport="sse")
+    else:
+        print("Starting DB MCP Server on stdio...", file=sys.stderr)
+        mcp.run(transport="stdio")

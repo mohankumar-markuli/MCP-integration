@@ -80,11 +80,21 @@ Ensure that candidate PDF resumes are present in the `./resumes` folder (the sys
 ```
 
 ### 5. Running the Jupyter Notebook Walkthrough
-To interactively execute and observe each pipeline node:
-```powershell
-.venv\Scripts\jupyter notebook mcp_matching_pipeline.ipynb
-```
-Once Jupyter opens, open the notebook and execute all cells sequentially.
+To run the notebook interactively, you must first start the MCP servers in separate terminals/command prompts using the SSE (Server-Sent Events) HTTP transport:
+
+1. **Start the Filesystem MCP Server** (in Terminal 1):
+   ```powershell
+   .venv\Scripts\python.exe mcp_servers/filesystem_mcp_server.py sse 8001
+   ```
+2. **Start the Candidate Database MCP Server** (in Terminal 2):
+   ```powershell
+   .venv\Scripts\python.exe mcp_servers/db_mcp_server.py sse 8002
+   ```
+3. **Start Jupyter and Open the Notebook** (in Terminal 3):
+   ```powershell
+   .venv\Scripts\jupyter notebook mcp_matching_pipeline.ipynb
+   ```
+Once Jupyter opens, run all cells sequentially to execute the full pipeline step-by-step.
 
 ---
 

@@ -58,8 +58,8 @@ async def run_server_tests():
         args=["mcp_servers/db_mcp_server.py"]
     )
     
-    async with stdio_client(fs_params) as (fs_read, fs_write), \
-               stdio_client(db_params) as (db_read, db_write):
+    async with stdio_client(fs_params, errlog=sys.stderr if hasattr(sys.stderr, "fileno") else sys.__stderr__) as (fs_read, fs_write), \
+               stdio_client(db_params, errlog=sys.stderr if hasattr(sys.stderr, "fileno") else sys.__stderr__) as (db_read, db_write):
                
         async with ClientSession(fs_read, fs_write) as fs_session, \
                    ClientSession(db_read, db_write) as db_session:

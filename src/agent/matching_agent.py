@@ -164,8 +164,8 @@ Output ONLY valid JSON. Do not write anything else.
         client = OpenAI(api_key=openai_key)
         model = "gpt-4o-mini"
     elif cohere_key:
-        from cohere import ClientV2
-        co = ClientV2(api_key=cohere_key)
+        cohere = __import__("cohere")
+        co = cohere.ClientV2(api_key=cohere_key)
         response = co.chat(
             model="command-r-plus",
             messages=[{"role": "user", "content": prompt}],
@@ -375,8 +375,8 @@ async def run_matching_workflow(jd: str, resumes_dir: str):
     
     print("[Agent] Starting Filesystem and Database MCP servers...", file=sys.stderr)
     
-    async with stdio_client(fs_server_params) as (fs_read, fs_write), \
-               stdio_client(db_server_params) as (db_read, db_write):
+    async with stdio_client(fs_server_params, errlog=sys.stderr if hasattr(sys.stderr, "fileno") else sys.__stderr__) as (fs_read, fs_write), \
+               stdio_client(db_server_params, errlog=sys.stderr if hasattr(sys.stderr, "fileno") else sys.__stderr__) as (db_read, db_write):
                
         print("[Agent] Handshaking and initializing sessions...", file=sys.stderr)
         

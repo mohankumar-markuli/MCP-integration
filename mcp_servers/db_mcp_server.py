@@ -14,7 +14,7 @@ CANDIDATE_DB = {
         "expected_salary": "$120,000",
         "previous_company": "TechCorp",
         "certifications": ["AWS Solutions Architect", "Certified Scrum Master"],
-        "notes": "Highly recommended for cloud native roles."
+        "notes": "Highly recommended for cloud native roles."s
     },
     "Bob Jones": {
         "experience": "8 years as Data Scientist / Machine Learning Engineer",

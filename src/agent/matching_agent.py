@@ -49,15 +49,30 @@ def parse_mcp_result(result) -> Any:
         return text
 
 def extract_json_from_text(text: str) -> dict:
-    """Extracts JSON object from text (handling markdown wrappers)."""
-    match = re.search(r"({.*?})", text, re.DOTALL)
-    if match:
+    """Extracts JSON object from text (handling markdown wrappers and preambles)."""
+    # Clean up common markdown wrappers
+    clean_text = text.strip()
+    if clean_text.startswith("```json"):
+        clean_text = clean_text[7:]
+    elif clean_text.startswith("```"):
+        clean_text = clean_text[3:]
+    if clean_text.endswith("```"):
+        clean_text = clean_text[:-3]
+    clean_text = clean_text.strip()
+    
+    # Find outermost braces
+    start_idx = clean_text.find("{")
+    end_idx = clean_text.rfind("}")
+    
+    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+        json_candidate = clean_text[start_idx:end_idx + 1]
         try:
-            return json.loads(match.group(1))
+            return json.loads(json_candidate)
         except Exception:
             pass
+            
     try:
-        return json.loads(text)
+        return json.loads(clean_text)
     except Exception:
         pass
     
@@ -124,11 +139,12 @@ def run_mock_llm_matching(resume_text: str, jd_text: str, profile_db_metadata: s
     }
 
 def run_real_llm_matching(resume_text: str, jd_text: str, profile_db_metadata: str) -> dict:
-    """Performs real LLM evaluation using OpenRouter, OpenAI, or Cohere."""
+    """Performs real LLM evaluation, trying OpenAI first and falling back to OpenRouter."""
     from openai import OpenAI
     
-    openrouter_key = os.getenv("OPENROUTER_API_KEY")
     openai_key = os.getenv("OPENAI_API_KEY")
+    openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    openrouter_model = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3-ultra-550b-a55b:free")
     cohere_key = os.getenv("COHERE_API_KEY")
     
     prompt = f"""
@@ -154,33 +170,55 @@ Provide your evaluation in JSON format with the following keys:
 Output ONLY valid JSON. Do not write anything else.
 """
 
+    # 1. Try standard OpenAI first
+    if openai_key:
+        try:
+            print("  [LLM] Attempting OpenAI (gpt-4o-mini)...", file=sys.stderr)
+            client = OpenAI(api_key=openai_key)
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+                max_tokens=1000
+            )
+            return extract_json_from_text(response.choices[0].message.content)
+        except Exception as e:
+            print(f"  [LLM Warning] OpenAI API call failed: {e}. Trying OpenRouter...", file=sys.stderr)
+
+    # 2. Fall back to OpenRouter
     if openrouter_key:
-        client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=openrouter_key
-        )
-        model = os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash")
-    elif openai_key:
-        client = OpenAI(api_key=openai_key)
-        model = "gpt-4o-mini"
-    elif cohere_key:
-        cohere = __import__("cohere")
-        co = cohere.ClientV2(api_key=cohere_key)
-        response = co.chat(
-            model="command-r-plus",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2
-        )
-        return extract_json_from_text(response.message.content[0].text)
-    else:
-        raise ValueError("No LLM key configured")
-        
-    response = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2
-    )
-    return extract_json_from_text(response.choices[0].message.content)
+        try:
+            print(f"  [LLM] Attempting OpenRouter ({openrouter_model})...", file=sys.stderr)
+            client = OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=openrouter_key
+            )
+            response = client.chat.completions.create(
+                model=openrouter_model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+                max_tokens=1000
+            )
+            return extract_json_from_text(response.choices[0].message.content)
+        except Exception as e:
+            print(f"  [LLM Warning] OpenRouter API call failed: {e}.", file=sys.stderr)
+
+    # 3. Secondary fallback to Cohere if configured
+    if cohere_key:
+        try:
+            print("  [LLM] Attempting Cohere (command-r-plus)...", file=sys.stderr)
+            cohere = __import__("cohere")
+            co = cohere.ClientV2(api_key=cohere_key)
+            response = co.chat(
+                model="command-r-plus",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2
+            )
+            return extract_json_from_text(response.message.content[0].text)
+        except Exception as e:
+            print(f"  [LLM Error] Cohere API call failed: {e}.", file=sys.stderr)
+
+    raise ValueError("No working LLM configurations or keys available.")
 
 # =====================================================================
 # 4. LangGraph Nodes
